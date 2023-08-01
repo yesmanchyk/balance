@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: yesmanchyk
+      changes:
+      - createTable:
+          catalogName: postgres
+          tableName: users
+          columns:
+          - column:
+              name: id
+              type: int
+              constraints:
+                primaryKey: true
+                nullable: false
+          - column:
+              name: login
+              type: varchar(255)
+              constraints:
+                nullable: false
+          - column:
+              name: balance
+              type: money
+              constraints:
+                nullable: false

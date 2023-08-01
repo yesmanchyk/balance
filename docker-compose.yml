@@ -1,0 +1,26 @@
+secrets:
+  db_password:
+    file: ./db_password.txt
+
+services:
+
+  db:
+    image: postgres:15.3
+    restart: always
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    ports:
+      - 5432:5432
+    secrets:
+      - db_password
+
+  liquibase:
+    image: liquibase/liquibase:4.23.0
+    volumes:
+      - ./liquibase/:/liquibase/changelog/
+    depends_on:
+      - db
+    entrypoint: bash -c "liquibase update --changelog-file=changelog/changelog-1.0.yaml --show-summary=verbose --url=jdbc:postgresql://db:5432/postgres --username=postgres --password=$(< /run/secrets/db_password)"
+    secrets:
+      - db_password
+
