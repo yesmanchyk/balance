@@ -6,6 +6,7 @@ mod errors {
     #[derive(Display, From, Debug)]
     pub enum RestError {
         NotFound,
+        InsufficientFunds,
         PoolError(PoolError),
         PostgresError(tokio_postgres::Error)
     }
@@ -19,7 +20,10 @@ mod errors {
                 RestError::PoolError(ref err) => {
                     HttpResponse::InternalServerError().body(err.to_string())
                 }
-                _ => HttpResponse::InternalServerError().finish(),
+                RestError::PostgresError(ref err) => {
+                    HttpResponse::InternalServerError().body(err.to_string())
+                }
+                _ => HttpResponse::InternalServerError().finish()
             }
         }
     }
@@ -45,13 +49,27 @@ mod handlers {
     #[post("/thanks")]
     async fn thanks4(body: String, db_pool: web::Data<Pool>) 
         -> Result<HttpResponse, Error> {
-        let client = db_pool.get().await.map_err(RestError::PoolError)?;
-        let rows = client.query(
-            "SELECT count(*) FROM users WHERE login != $1", 
-            &[&"hello world"]).await.map_err(RestError::PostgresError)?;
-        let users: i64 = rows[0].get(0);
+        let mut client = db_pool.get().await.map_err(RestError::PoolError)?;
+
+        let transaction = client.transaction().await.map_err(RestError::PostgresError)?;
+
+        let amount: i32 = 1;
+        // Check that the balance of the account is greater than the amount
+        let row = transaction.query_one(
+            "SELECT CAST(balance * 100 AS BIGINT) FROM users WHERE login = $1 FOR UPDATE", 
+            &[&body]).await.map_err(RestError::PostgresError)?;
+        let balance: i64 = row.get(0);
+        if balance < amount as i64 {
+            return Err(RestError::InsufficientFunds.into());
+        }
+    
+        // TODO make testable - put a callback here to pause the transaction and execute a query on another thread
+    
+        transaction.execute("UPDATE users SET balance = balance - $1::INT / 100.0 WHERE login = $2", &[&amount, &body]).await.map_err(RestError::PostgresError)?;
+    
+        transaction.commit().await.map_err(RestError::PostgresError)?;
         Ok(HttpResponse::Ok().body(format!(
-            "Thanks for {} from {} users", body, users
+            "{} thanks to user {}", amount, body
             )))
     }
 }

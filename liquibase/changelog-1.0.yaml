@@ -23,3 +23,19 @@ databaseChangeLog:
               type: money
               constraints:
                 nullable: false
+  - changeSet:
+      id: 2
+      author: yesmanchyk
+      changes:
+      - insert:
+          tableName: users
+          columns:
+          - column:
+              name: id
+              value: 1
+          - column:
+              name: login
+              value: 'fry@example.com'
+          - column:
+              name: balance
+              value: 100
