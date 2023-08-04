@@ -1,12 +1,12 @@
 # Setup
 1. Create `db_password.txt` with desired PostgreSQL password
-2. `docker compose up` takes about 2.5 minutes to build actix-rest
-3. In a separate terminal:
+2. `docker compose up` takes about 2.5 minutes to build actix-rest. Open http://localhost:8000/
+3. For the local debugging run in a separate terminal:
 ```
 cd actix-rest
-DB_HOST=localhost  DB_PASS_PATH=../db_password
-.txt cargo run
+DB_HOST=localhost  DB_PASS_PATH=../db_password.txt cargo run
 ```
+Local API is at http://localhost:8080/
 
 # Tasks
 * Liquibase users with balance
