@@ -73,7 +73,7 @@ fn env_or_default(key: &str, default: &str) -> String {
 
 #[tokio::main] 
 async fn main() -> std::io::Result<()> {
-    let db_pass_path = env_or_default("DB_PASS_PATH", "/var/secrets/db_password");
+    let db_pass_path = env_or_default("DB_PASS_PATH", "/run/secrets/db_password");
     let f = File::open(db_pass_path).await?;
     let mut reader = BufReader::new(f);
     let mut db_password = String::new();

@@ -1,6 +1,6 @@
 # Setup
 1. Create `db_password.txt` with desired PostgreSQL password
-2. `docker compose up`
+2. `docker compose up` takes about 2.5 minutes to build actix-rest
 3. In a separate terminal:
 ```
 cd actix-rest

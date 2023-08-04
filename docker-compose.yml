@@ -24,3 +24,12 @@ services:
     secrets:
       - db_password
 
+  web:
+    build: actix-rest
+    ports:
+      - "8000:8080"
+    depends_on:
+      - db
+    secrets:
+      - db_password
+
