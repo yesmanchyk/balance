@@ -7,7 +7,9 @@ cd actix-rest
 DB_HOST=localhost  DB_PASS_PATH=../db_password.txt cargo run
 ```
 Local API is at http://localhost:8080/
+
 4. Decrement balance with `curl -v -d 'fry@example.com' http://localhost:8080/thanks && echo`
+5. `docker run -it --rm --network balance_default postgres psql -h db -U postgres`
 
 # Tasks
 * Liquibase users with balance
