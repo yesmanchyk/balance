@@ -17,19 +17,21 @@ mod errors {
         fn error_response(&self) -> HttpResponse {
             match *self {
                 RestError::NotFound => HttpResponse::NotFound().finish(),
+                RestError::InsufficientFunds => HttpResponse::BadRequest().finish(),
                 RestError::PoolError(ref err) => {
                     HttpResponse::InternalServerError().body(err.to_string())
                 }
                 RestError::PostgresError(ref err) => {
                     HttpResponse::InternalServerError().body(err.to_string())
                 }
-                _ => HttpResponse::InternalServerError().finish()
+                //_ => HttpResponse::InternalServerError().finish()
             }
         }
     }
 }
 
 mod handlers {
+    use log::debug;
     use actix_web::{get, post, web, Error, HttpResponse};
     use deadpool_postgres::Pool;
     use crate::errors::RestError;
@@ -53,19 +55,23 @@ mod handlers {
 
         let transaction = client.transaction().await.map_err(RestError::PostgresError)?;
 
-        let amount: i32 = 1;
+        let amount: i32 = 100;
         // Check that the balance of the account is greater than the amount
-        let row = transaction.query_one(
-            "SELECT CAST(balance * 100 AS BIGINT) FROM users WHERE login = $1 FOR UPDATE", 
+        let rows = transaction.query(
+            "SELECT CAST(balance * 10000 AS BIGINT) FROM users WHERE login = $1 FOR UPDATE", 
             &[&body]).await.map_err(RestError::PostgresError)?;
+        if rows.len() < 1 {
+            return Err(RestError::NotFound.into());
+        }
+        let row = &rows[0];
         let balance: i64 = row.get(0);
+        debug!("{} balance {} - {} = {}", body, balance, amount, balance - amount as i64);
+
         if balance < amount as i64 {
             return Err(RestError::InsufficientFunds.into());
         }
     
-        // TODO make testable - put a callback here to pause the transaction and execute a query on another thread
-    
-        transaction.execute("UPDATE users SET balance = balance - $1::INT / 100.0 WHERE login = $2", &[&amount, &body]).await.map_err(RestError::PostgresError)?;
+        transaction.execute("UPDATE users SET balance = balance - $1::INT / 10000.0 WHERE login = $2", &[&amount, &body]).await.map_err(RestError::PostgresError)?;
     
         transaction.commit().await.map_err(RestError::PostgresError)?;
         Ok(HttpResponse::Ok().body(format!(
@@ -89,8 +95,13 @@ fn env_or_default(key: &str, default: &str) -> String {
     }
 }
 
+use actix_web::middleware::Logger;
+use env_logger::Env;
+
 #[tokio::main] 
 async fn main() -> std::io::Result<()> {
+    env_logger::init_from_env(Env::default().default_filter_or("debug"));
+
     let db_pass_path = env_or_default("DB_PASS_PATH", "/run/secrets/db_password");
     let f = File::open(db_pass_path).await?;
     let mut reader = BufReader::new(f);
@@ -113,6 +124,8 @@ async fn main() -> std::io::Result<()> {
     
     HttpServer::new(move || {
         App::new()
+            .wrap(Logger::default())
+            .wrap(Logger::new("%a %{User-Agent}i"))
             .app_data(web::Data::new(pool.clone()))
             .service(handlers::status)
             .service(handlers::thanks4)
